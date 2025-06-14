@@ -1,467 +1,70 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ProgressPro</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        /* Base styles */
-        body {
-            font-family: system-ui, -apple-system, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background-color: #f5f5f5;
-            color: #333;
-        }
+// components/GoalList.tsx
+'use client';
+import { useState, useEffect } from 'react';
 
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
+type Goal = {
+  id: string;
+  text: string;
+  completed: boolean;
+};
 
-        header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
+export function GoalList() {
+  const [goals, setGoals] = useState<Goal[]>([]);
+  const [newGoal, setNewGoal] = useState('');
 
-        nav ul {
-            display: flex;
-            gap: 15px;
-            list-style: none;
-            padding: 0;
-        }
+  useEffect(() => {
+    const saved = localStorage.getItem('progressProGoals');
+    if (saved) setGoals(JSON.parse(saved));
+  }, []);
 
-        nav a {
-            text-decoration: none;
-            color: inherit;
-            padding: 5px 10px;
-            border-radius: 5px;
-            background-color: white;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
+  useEffect(() => {
+    localStorage.setItem('progressProGoals', JSON.stringify(goals));
+  }, [goals]);
 
-        nav a.active {
-            background-color: #007bff;
-            color: white;
-        }
+  const addGoal = () => {
+    if (newGoal.trim()) {
+      setGoals([...goals, {
+        id: crypto.randomUUID(),
+        text: newGoal,
+        completed: false
+      }]);
+      setNewGoal('');
+    }
+  };
 
-        /* Components */
-        .goal-card {
-            background-color: white;
-            border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 15px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-
-        .task-item {
-            background-color: white;
-            padding: 10px;
-            margin-bottom: 10px;
-            border-radius: 5px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-
-        /* Forms */
-        .form-group {
-            margin-bottom: 15px;
-        }
-
-        label {
-            display: block;
-            margin-bottom: 5px;
-            color: #555;
-        }
-
-        input, select, textarea {
-            width: 100%;
-            padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 14px;
-        }
-
-        button {
-            background-color: #007bff;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
-
-        button:hover {
-            background-color: #0056b3;
-        }
-
-        /* Progress tracking */
-        .progress-container {
-            margin-top: 15px;
-        }
-
-        .progress-bar {
-            background-color: #eee;
-            border-radius: 5px;
-            overflow: hidden;
-            margin-top: 5px;
-        }
-
-        .progress-fill {
-            height: 20px;
-            background-color: #007bff;
-            transition: width 0.3s ease;
-        }
-
-        /* Backup section */
-        .backup-section {
-            margin-top: 20px;
-            padding: 15px;
-            background-color: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-
-        /* Responsive design */
-        @media (max-width: 768px) {
-            body { padding: 10px; }
-            nav ul { flex-wrap: wrap; }
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <!-- Header -->
-        <header>
-            <h1>ProgressPro</h1>
-            <nav>
-                <ul id="main-nav"></ul>
-            </nav>
-        </header>
-
-        <!-- Main content -->
-        <main id="app-content"></main>
-
-        <!-- Modals -->
-        <div id="goal-modal" class="modal" style="display: none;">
-            <div class="modal-content">
-                <h2>Add New Goal</h2>
-                <form id="goal-form">
-                    <div class="form-group">
-                        <label for="goal-name">Goal Name:</label>
-                        <input type="text" id="goal-name" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="goal-target">Target Value:</label>
-                        <input type="number" id="goal-target" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="goal-description">Description:</label>
-                        <textarea id="goal-description" rows="3"></textarea>
-                    </div>
-                    <div class="form-group">
-                        <label for="goal-start-date">Start Date:</label>
-                        <input type="date" id="goal-start-date" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="goal-end-date">End Date:</label>
-                        <input type="date" id="goal-end-date" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="goal-recurrence">Recurrence:</label>
-                        <select id="goal-recurrence">
-                            <option value="none">None</option>
-                            <option value="daily">Daily</option>
-                            <option value="weekly">Weekly</option>
-                            <option value="monthly">Monthly</option>
-                            <option value="yearly">Yearly</option>
-                        </select>
-                    </div>
-                    <button type="submit">Save Goal</button>
-                    <button type="button" onclick="closeModal()">Cancel</button>
-                </form>
-            </div>
-        </div>
-
-        <script>
-            // Core data structure
-            const appData = {
-                goals: [],
-                tasks: [],
-                notes: [],
-                links: []
-            };
-
-            // Initialize localStorage
-            function initStorage() {
-                const savedData = localStorage.getItem('progresspro_data');
-                if (savedData) {
-                    Object.assign(appData, JSON.parse(savedData));
-                }
-            }
-
-            // Save to localStorage
-            function saveToStorage() {
-                localStorage.setItem('progresspro_data', JSON.stringify(appData));
-            }
-
-            // Navigation system
-            function renderNav() {
-                const nav = document.getElementById('main-nav');
-                nav.innerHTML = `
-                    <li><a href="#goals" onclick="showView('goals')" ${currentView === 'goals' ? 'class="active"' : ''}>Goals</a></li>
-                    <li><a href="#tasks" onclick="showView('tasks')" ${currentView === 'tasks' ? 'class="active"' : ''}>Tasks</a></li>
-                    <li><a href="#notes" onclick="showView('notes')" ${currentView === 'notes' ? 'class="active"' : ''}>Notes</a></li>
-                    <li><a href="#links" onclick="showView('links')" ${currentView === 'links' ? 'class="active"' : ''}>Links</a></li>
-                `;
-            }
-
-            // View management
-            let currentView = 'goals';
-
-            function showView(view) {
-                currentView = view;
-                renderNav();
-                renderContent();
-            }
-
-            // Content rendering
-            function renderContent() {
-                const content = document.getElementById('app-content');
-                
-                switch(currentView) {
-                    case 'goals':
-                        renderGoals(content);
-                        break;
-                    case 'tasks':
-                        renderTasks(content);
-                        break;
-                    case 'notes':
-                        renderNotes(content);
-                        break;
-                    case 'links':
-                        renderLinks(content);
-                        break;
-                }
-            }
-
-            // Goals management
-            function renderGoals(container) {
-                container.innerHTML = `
-                    <button onclick="showGoalModal()">Add New Goal</button>
-                    ${appData.goals.map(goal => `
-                        <div class="goal-card">
-                            <h3>${goal.name}</h3>
-                            <p>${goal.description}</p>
-                            <div class="progress-container">
-                                <div class="progress-bar">
-                                    <div class="progress-fill" style="width: ${calculateProgress(goal)}%">
-                                        <span>${calculateProgress(goal)}%</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div>
-                                <input type="number" placeholder="Log Progress" onkeyup="logProgress(event, '${goal.id}')">
-                                <button onclick="updateGoal('${goal.id}')">Update</button>
-                            </div>
-                        </div>
-                    `).join('')}
-                `;
-            }
-
-            function calculateProgress(goal) {
-                return Math.min(100, (goal.currentValue || 0) / goal.target * 100);
-            }
-
-            function showGoalModal() {
-                document.getElementById('goal-modal').style.display = 'block';
-            }
-
-            function closeModal() {
-                document.getElementById('goal-modal').style.display = 'none';
-            }
-
-            function addGoal(form) {
-                const goal = {
-                    id: Date.now().toString(),
-                    name: form['goal-name'].value,
-                    target: parseInt(form['goal-target'].value),
-                    currentValue: 0,
-                    description: form['goal-description'].value,
-                    startDate: form['goal-start-date'].value,
-                    endDate: form['goal-end-date'].value,
-                    recurrence: form['goal-recurrence'].value
-                };
-
-                appData.goals.push(goal);
-                saveToStorage();
-                closeModal();
-                renderContent();
-
-                form.reset();
-                return false;
-            }
-
-            function logProgress(event, goalId) {
-                const goal = appData.goals.find(g => g.id === goalId);
-                if (!goal) return;
-
-                const value = parseInt(event.target.value) || 0;
-                goal.currentValue = Math.min(goal.target, (goal.currentValue || 0) + value);
-                
-                saveToStorage();
-                renderContent();
-            }
-
-            // Tasks management
-            function renderTasks(container) {
-                container.innerHTML = `
-                    <button onclick="addTask()">Add New Task</button>
-                    ${appData.tasks.map(task => `
-                        <div class="task-item">
-                            <h3>${task.title}</h3>
-                            <p>Due: ${task.dueDate}</p>
-                            <button onclick="completeTask('${task.id}')">
-                                ${task.completed ? 'Completed' : 'Complete'}
-                            </button>
-                        </div>
-                    `).join('')}
-                `;
-            }
-
-            function addTask() {
-                const title = prompt('Enter task title:');
-                const dueDate = prompt('Enter due date (YYYY-MM-DD):');
-
-                if (!title || !dueDate) return;
-
-                appData.tasks.push({
-                    id: Date.now().toString(),
-                    title,
-                    dueDate,
-                    completed: false
-                });
-
-                saveToStorage();
-                renderContent();
-            }
-
-            function completeTask(taskId) {
-                const task = appData.tasks.find(t => t.id === taskId);
-                if (task) {
-                    task.completed = !task.completed;
-                    saveToStorage();
-                    renderContent();
-                }
-            }
-
-            // Notes management
-            function renderNotes(container) {
-                container.innerHTML = `
-                    <button onclick="addNote()">Add Note</button>
-                    ${appData.notes.map(note => `
-                        <div class="goal-card">
-                            <p>${note.content}</p>
-                            <small>${new Date(note.timestamp).toLocaleString()}</small>
-                        </div>
-                    `).join('')}
-                `;
-            }
-
-            function addNote() {
-                const content = prompt('Enter your note:');
-                if (!content) return;
-
-                appData.notes.push({
-                    id: Date.now().toString(),
-                    content,
-                    timestamp: Date.now()
-                });
-
-                saveToStorage();
-                renderContent();
-            }
-
-            // Links management
-            function renderLinks(container) {
-                container.innerHTML = `
-                    <button onclick="addLink()">Add Link</button>
-                    ${appData.links.map(link => `
-                        <div class="goal-card">
-                            <a href="${link.url}" target="_blank">${link.title}</a>
-                            <small>${link.description}</small>
-                        </div>
-                    `).join('')}
-                `;
-            }
-
-            function addLink() {
-                const title = prompt('Enter link title:');
-                const url = prompt('Enter URL:');
-                const description = prompt('Enter description:');
-
-                if (!title || !url) return;
-
-                appData.links.push({
-                    id: Date.now().toString(),
-                    title,
-                    url,
-                    description
-                });
-
-                saveToStorage();
-                renderContent();
-            }
-
-            // Backup functionality
-            function exportBackup() {
-                const data = JSON.stringify(appData);
-                const blob = new Blob([data], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'progresspro-backup.json';
-                a.click();
-            }
-
-            function importBackup() {
-                const input = document.createElement('input');
-                input.type = 'file';
-                input.accept = '.json';
-                input.onchange = function(e) {
-                    const file = e.target.files[0];
-                    const reader = new FileReader();
-                    
-                    reader.onload = function(e) {
-                        Object.assign(appData, JSON.parse(e.target.result));
-                        saveToStorage();
-                        renderContent();
-                    };
-
-                    reader.readAsText(file);
-                };
-                input.click();
-            }
-
-            // Initialize app
-            initStorage();
-            showView('goals');
-
-            // Add backup buttons
-            const header = document.querySelector('header');
-            const backupBtns = `
-                <div class="backup-section">
-                    <button onclick="exportBackup()">Export Backup</button>
-                    <button onclick="importBackup()">Import Backup</button>
-                </div>
-            `;
-            header.insertAdjacentHTML('beforeend', backupBtns);
-
-            // Form handling
-            document.getElementById('goal-form')?.addEventListener('submit', addGoal);
-        </script>
-    </body>
-</html>
+  return (
+    <div>
+      <div className="flex gap-2 mb-4">
+        <input
+          className="border p-2 flex-1"
+          value={newGoal}
+          onChange={(e) => setNewGoal(e.target.value)}
+          placeholder="What's your goal?"
+        />
+        <button 
+          className="bg-blue-500 text-white p-2 rounded"
+          onClick={addGoal}
+        >
+          Add
+        </button>
+      </div>
+      <ul className="space-y-2">
+        {goals.map(goal => (
+          <li key={goal.id} className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={goal.completed}
+              onChange={() => setGoals(goals.map(g => 
+                g.id === goal.id ? {...g, completed: !g.completed} : g
+              )}
+              className="h-5 w-5"
+            />
+            <span className={goal.completed ? 'line-through text-gray-500' : ''}>
+              {goal.text}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
